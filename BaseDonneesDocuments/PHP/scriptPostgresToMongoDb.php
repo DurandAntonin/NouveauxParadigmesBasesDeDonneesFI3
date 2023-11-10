@@ -37,16 +37,32 @@ while ($row = pg_fetch_row($listeLignes)) {
 fputs($curseur, $collectionLignes->serialize());
 fclose($curseur);
 
-//on ouvre le fichier des trips à la fin en mode lecture et écriture
-$curseur = fopen("{$pathDataJson}$filenameCollectionTrips", "w+");
+$i = 1;
+$j = 1;
 
 //on exécute une premiere requete pour sélectionner chaque train (chaque train a un horaire de début différent)
 $listeTrips = $postgreSql->executeQuery("select route_id, trip_id, trip_headsign from small_trips");
 
+//on ouvre le fichier des trips à la fin en mode lecture et écriture
+$curseur = fopen("{$pathDataJson}{$filenameCollectionTrips}_{$i}", "w+");
+
 //on créé un objet CollectionLignes pour stocker chaque ligne
 $collectionTrips = new CollectionTrips();
-$i = 1;
+
 while ($row = pg_fetch_row($listeTrips)) {
+    if ($i == 1000){
+        //on insère ce string json dans le fichier
+        fputs($curseur, $collectionTrips->serialize());
+        fclose($curseur);
+
+        $i = 1;
+        $j++;
+
+        $curseur = fopen("{$pathDataJson}{$filenameCollectionTrips}_{$j}", "w+");
+        $collectionTrips = new CollectionTrips();
+
+    }
+
     //on stocke les info de chaque train
     $routeId = $row[0];
     $tripId = $row[1];
@@ -55,7 +71,6 @@ while ($row = pg_fetch_row($listeTrips)) {
     //pour chaque train, i.e tripId, on effectue une requete pour sélectionner les différents arrets desservis par ce dernier
     //echo $tripId;
     $listeArretsTrips = $postgreSql->executeQuery("select trip_id, stop_id, arrival_time, departure_time from small_stop_times where trip_id = '$tripId' order by stop_sequence asc");
-    $i ++;
 
     //on créé un objet trip pour chaque train
     $trips = new Trips($tripId, $routeId, $tripHeadsign);
@@ -79,11 +94,7 @@ while ($row = pg_fetch_row($listeTrips)) {
         $trips->addArret($arret);
 
     }
+    $i ++;
     $collectionTrips->addTrip($trips);
 
-    if ($i > 20000)
-        break;
 }
-//on insère ce string json dans le fichier
-fputs($curseur, $collectionTrips->serialize());
-fclose($curseur);
