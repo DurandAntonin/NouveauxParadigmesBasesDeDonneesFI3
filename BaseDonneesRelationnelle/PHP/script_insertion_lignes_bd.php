@@ -1,8 +1,9 @@
 <?php
 require_once "PostgreSQL.php";
 ini_set('memory_limit', '1000M');
+mb_internal_encoding('UTF-8');
 
-$repoData = "../code-TP-reseau/new-dataset/";
+$repoData = "../code-TP-reseau/mini-dataset/";
 
 //on se connecte au seveur postgre sur une bd de base en tant que user postgres
 $postgreSql = new PostgreSQL();
@@ -11,11 +12,11 @@ $postgreSql->connectToPostgreSQL("postgres", "postgres", "azerty");
 echo "Connexion status :" . $postgreSql->getConnexionStatus() . "\n";
 
 //on créé un user et une base de données
-$postgreSql->initBd("database_reseaux_transports", "user_bd_reseaux_transport", "azerty");
+$postgreSql->initBd("database_reseaux_transports1", "user_bd_reseaux_transport1", "azerty");
 echo "\n";
 
 //on se connecte a la bd créée précédemment avec le nouveau user
-$postgreSql->switchUserConnexion("database_reseaux_transports", "user_bd_reseaux_transport", "azerty");
+$postgreSql->switchUserConnexion("database_reseaux_transports1", "user_bd_reseaux_transport1", "azerty");
 echo "\n";
 
 //on récupère le nom de chaque fichier de données à insérer dans la bd
@@ -30,7 +31,10 @@ for ($i = 2;$i<count($listeFicForTables);$i++){
 
     //on ouvre le fichier pour récupérer l'entete
     $curseur = fopen($repoData . $listeFicForTables[$i],"r");
-    $entete = fgetcsv($curseur, 1024,"\t");
+    $entete = fgetcsv($curseur, 2048,"\t");
+
+    $entete = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', $entete);
+    print_r($entete);
     fclose($curseur);
 
     //echo "<br>";
