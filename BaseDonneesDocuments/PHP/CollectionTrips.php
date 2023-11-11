@@ -9,9 +9,9 @@ class CollectionTrips
         $this->listeTrips = Array();
     }
 
-    function addTrip(Trips $trips): void
+    function addTrip(TrainHeadsign $trip): void
     {
-        $this->listeTrips[] = $trips;
+        $this->listeTrips[] = $trip;
     }
 
     function serialize(): string
@@ -27,5 +27,21 @@ class CollectionTrips
         $collectionTripsSerialized = rtrim($collectionTripsSerialized, ",") . "]";
 
         return $collectionTripsSerialized;
+    }
+
+    /**
+     * @return array
+     */
+    public function getListeTrips(): array
+    {
+        return $this->listeTrips;
+    }
+
+    /**
+     * @param array $listeTrips
+     */
+    public function setListeTrips(array $listeTrips): void
+    {
+        $this->listeTrips = $listeTrips;
     }
 }

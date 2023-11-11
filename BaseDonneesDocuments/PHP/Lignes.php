@@ -13,7 +13,6 @@ class Lignes
         $this->routeId = $parRouteId;
         $this->routeShortName = $parRouteShortName;
         $this->routeLongName = $parRouteLongName;
-
     }
 
     function serialize(): string

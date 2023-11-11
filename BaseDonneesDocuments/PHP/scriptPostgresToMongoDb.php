@@ -4,25 +4,31 @@ require_once "..\..\BaseDonneesRelationnelle\PHP\PostgreSQL.php";
 require_once "CollectionLignes.php";
 require_once "CollectionTrips.php";
 require_once "Lignes.php";
-require_once "Trips.php";
+require_once "TrainHeadsign.php";
 require_once "Arret.php";
+require_once "ArrivalsTime.php";
 
 set_time_limit(0);
 
 //PATH TO JSON DATA OUTPUT
-$pathDataJson = "../DATA/";
+$pathDataJson = "../TMP_DATA/";
 $filenameCollectionLignes = "collectionLignes.json";
 $filenameCollectionTrips = "collectionTrips.json";
 
 $postgreSql = new PostgreSQL();
 $postgreSql->connectToPostgreSQL("database_reseaux_transports", "user_bd_reseaux_transport", "azerty");
 
+$routesTableName = "small_routes";
+$tripsTableName = "small_trips";
+$stopTimesTableName = "small_stop_times";
+$arretsLignesTableName = "small_arrets_lignes";
+
 //on va exécuter une requete au serveur postgres pour sélectionner chaque ligne, et l'insérer dans un fichier json
 
 //on ouvre le fichier des lignes à la fin en mode lecture et écriture
 $curseur = fopen("{$pathDataJson}$filenameCollectionLignes", "w+");
 
-$listeLignes = $postgreSql->executeQuery("select route_id, route_short_name, route_long_name from small_routes");
+$listeLignes = $postgreSql->executeQuery("select route_id, route_short_name, route_long_name from $routesTableName");
 
 //on créé un objet CollectionLignes pour stocker chaque ligne
 $collectionLignes = new CollectionLignes();
@@ -37,64 +43,100 @@ while ($row = pg_fetch_row($listeLignes)) {
 fputs($curseur, $collectionLignes->serialize());
 fclose($curseur);
 
-$i = 1;
+$nbDocsPerFile = 10;
+$i = 0;
 $j = 1;
-
-//on exécute une premiere requete pour sélectionner chaque train (chaque train a un horaire de début différent)
-$listeTrips = $postgreSql->executeQuery("select route_id, trip_id, trip_headsign from small_trips");
+$nArrivalsTimeToTake = 20;
 
 //on ouvre le fichier des trips à la fin en mode lecture et écriture
-$curseur = fopen("{$pathDataJson}{$filenameCollectionTrips}_{$i}", "w+");
+$curseur = fopen("{$pathDataJson}_{$j}{$filenameCollectionTrips}", "w+");
+
+//on exécute une premiere requete pour sélectionner chaque tripheadsign
+$resultTrips = $postgreSql->executeQuery("select distinct on (trip_headsign) trip_headsign, route_id, trip_id from $tripsTableName");
 
 //on créé un objet CollectionLignes pour stocker chaque ligne
 $collectionTrips = new CollectionTrips();
-
-while ($row = pg_fetch_row($listeTrips)) {
-    if ($i == 1000){
+echo var_dump($resultTrips);
+while ($row1 = pg_fetch_row($resultTrips)){
+    echo "Trip : ";
+    print_r($row1);
+    if ($i == $nbDocsPerFile){
         //on insère ce string json dans le fichier
         fputs($curseur, $collectionTrips->serialize());
         fclose($curseur);
 
-        $i = 1;
+        $i = 0;
         $j++;
 
-        $curseur = fopen("{$pathDataJson}{$filenameCollectionTrips}_{$j}", "w+");
+        $curseur = fopen("{$pathDataJson}_{$j}{$filenameCollectionTrips}", "w+");
         $collectionTrips = new CollectionTrips();
-
     }
+    //echo "la";
 
-    //on stocke les info de chaque train
-    $routeId = $row[0];
-    $tripId = $row[1];
-    $tripHeadsign = $row[2];
+    //on stocke les info de chaque train (MONA, CIME, APOR, ...)
+    $routeId = $row1[1];
+    $tripId = $row1[2];
+    $tripHeadSign  = $row1[0];
+    $listeArrets = array();
 
-    //pour chaque train, i.e tripId, on effectue une requete pour sélectionner les différents arrets desservis par ce dernier
-    //echo $tripId;
-    $listeArretsTrips = $postgreSql->executeQuery("select trip_id, stop_id, arrival_time, departure_time from small_stop_times where trip_id = '$tripId' order by stop_sequence asc");
+    $trainHeadsign = new TrainHeadsign($routeId, "", $tripHeadSign);
 
-    //on créé un objet trip pour chaque train
-    $trips = new Trips($tripId, $routeId, $tripHeadsign);
-    while ($row1 = pg_fetch_row($listeArretsTrips)) {
-        //print_r($row1);
-        $stopId = $row1[1];
-        $arrivalTime = $row1[2];
-        $departureTime = $row1[3];
-        //on exécute une requete sql pour sélectionner les info de l'arret obtenu
-        $infoArret = $postgreSql->executeQuery("select route_id, stop_id, stop_name, stop_lon, stop_lat, operatorname, nom_commune, code_insee from small_arrets_lignes");
-        $row2 = pg_fetch_row($infoArret);
-        //print_r($row2);
+    //pour chaque train tripheadsign, on récupère la liste des arrets de manière croissante
+    $resulTArrets = $postgreSql->executeQuery("select st.stop_id, stop_sequence, stop_name, stop_lon, stop_lat, OperatorName, Nom_commune, Code_insee 
+                                                                    from $stopTimesTableName st, $arretsLignesTableName al 
+                                                                    where st.stop_id = al.stop_id 
+                                                                    and al.route_id = '$routeId'
+                                                                    and st.trip_id = '$tripId'
+                                                                    order by stop_sequence asc");
+    $n_arrets = 0;
+    while ($row2 = pg_fetch_row($resulTArrets)){
+        $stopId = $row2[0];
+        $stopSequence = $row2[1];
         $stopName = $row2[2];
         $stopLon = $row2[3];
         $stopLat = $row2[4];
         $operatorname = $row2[5];
-        $nom_commune = $row2[6];
-        $code_insee = $row2[7];
+        $nomCommune = $row2[6];
+        $codeInsee = $row2[7];
 
-        $arret = new Arret($stopId, $stopName, $stopLon, $stopLat, $operatorname, $nom_commune, $code_insee, $arrivalTime, $departureTime);
-        $trips->addArret($arret);
+        //echo "Arret : ";
+        //print_r($row2);
 
+        if ($n_arrets == 0)
+            $trainHeadsign->setIdArretDepart($stopId);
+
+        $arret = new Arret($stopId, $stopName, $stopLon, $stopLat, $operatorname, $nomCommune, $codeInsee, $stopSequence);
+
+        //pour chaque arret, on obtient les horaires de ce dernier
+        $resultArrivalTimesArret = $postgreSql -> executeQuery("select arrival_time, departure_time, st.trip_id
+                                                                            from $stopTimesTableName st, $tripsTableName t
+                                                                            where st.trip_id = t.trip_id
+                                                                            and stop_id = '$stopId'
+                                                                            and t.route_id = '$routeId'
+                                                                            order by arrival_time asc
+                                                                            limit $nArrivalsTimeToTake
+                                                                            offset 0");
+
+        while ($row3 = pg_fetch_row($resultArrivalTimesArret)){
+            //echo "Arrival Time : ";
+            //print_r($row3);
+            $tripIdArrivalTime = $row3[2];
+            $arrivalTime = $row3[0];
+            $departureTime = $row3[1];
+
+            $arrivalsTime = new ArrivalsTime($tripIdArrivalTime, $arrivalTime, $departureTime);
+
+            $arret->addArrivalTime($arrivalsTime);
+        }
+        $trainHeadsign->addArret($arret);
+        $n_arrets ++;
     }
-    $i ++;
-    $collectionTrips->addTrip($trips);
-
+    $i++;
+    $collectionTrips->addTrip($trainHeadsign);
+}
+if ($i < $nbDocsPerFile){
+    //on insère ce string json dans le fichier
+    //echo var_dump($collectionTrips->getListeTrips()[0]->getListeArrets()[0]);
+    fputs($curseur, $collectionTrips->serialize());
+    fclose($curseur);
 }

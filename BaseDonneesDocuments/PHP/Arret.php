@@ -16,11 +16,11 @@ class Arret
 
     private string $codeInsee;
 
-    private string $arrivalTime;
+    private string $stopSequence;
 
-    private string $departureTime;
+    private Array $listArrivalsTime;
 
-    function __construct(string $parStopId, string $parStopName, string $parStopLon, string $parStopLat, string $parOperatorName, string $parNomCommune, string $parCodeInsee, string $parArrivalTime, string $parDepartureTime)
+    function __construct(string $parStopId, string $parStopName, string $parStopLon, string $parStopLat, string $parOperatorName, string $parNomCommune, string $parCodeInsee, string $parStopSequence)
     {
         $this->stopId = $parStopId;
         $this->stopName = $parStopName;
@@ -29,8 +29,13 @@ class Arret
         $this->operatorName = $parOperatorName;
         $this->nomCommune = $parNomCommune;
         $this->codeInsee = $parCodeInsee;
-        $this->arrivalTime = $parArrivalTime;
-        $this->departureTime = $parDepartureTime;
+        $this->stopSequence = $parStopSequence;
+        $this->listArrivalsTime = array();
+    }
+
+    function addArrivalTime(ArrivalsTime $arrivalTime): void
+    {
+        $this->listArrivalsTime[] = $arrivalTime;
     }
 
     function serialize(): string
@@ -39,14 +44,28 @@ class Arret
 
         //on parcourt les champs de l'objet
         foreach ($this as $nameField => $valueField){
-            $value = $valueField;
+            //si la valeur est une liste, on sérialize chaque objet
+            //si la valeur est une liste, on sérialize chaque objet
+            if (is_array($valueField)){
+                $arretSerielized .= "\"$nameField\" : [";
 
-            $arretSerielized .= "\"$nameField\" : \"$value\",";
+                foreach ($valueField as $arrivalTime)
+                    $arretSerielized .= $arrivalTime->serialize() . ",";
+
+                //on enlève la virgule en trop
+                $arretSerielized = rtrim($arretSerielized, ",");
+
+                $arretSerielized .= "],";
+
+            }
+            else{
+                $arretSerielized .= "\"$nameField\" : \"$valueField\",";
+            }
         }
         //on enlève la virgule en trop
-        $arretSerielized = rtrim($arretSerielized, ",");
-
-        return $arretSerielized . "}";
+        $arretSerielized = rtrim($arretSerielized, ",") . "}";
+        //echo $arretSerielized . "\n\n";
+        return $arretSerielized;
     }
 
     public function getStopId(): string
@@ -137,5 +156,37 @@ class Arret
     public function setDepartureTime(string $departureTime): void
     {
         $this->departureTime = $departureTime;
+    }
+
+    /**
+     * @return string
+     */
+    public function getStopSequence(): string
+    {
+        return $this->stopSequence;
+    }
+
+    /**
+     * @param string $stopSequence
+     */
+    public function setStopSequence(string $stopSequence): void
+    {
+        $this->stopSequence = $stopSequence;
+    }
+
+    /**
+     * @return array
+     */
+    public function getListArrivalsTime(): array
+    {
+        return $this->listArrivalsTime;
+    }
+
+    /**
+     * @param array $listArrivalsTime
+     */
+    public function setListArrivalsTime(array $listArrivalsTime): void
+    {
+        $this->listArrivalsTime = $listArrivalsTime;
     }
 }

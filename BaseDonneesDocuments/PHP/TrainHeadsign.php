@@ -2,21 +2,21 @@
 
 require_once "Arret.php";
 
-class Trips
+class TrainHeadsign
 {
-    private string $tripId;
-
     private string $routeId;
 
     private string $tripHeadsign;
 
+    private string $idArretDepart;
+
     private Array $listeArrets;
 
-    function __construct(string $parTripId, string $parRouteId, string $parTripheadsign)
+    function __construct(string $parRouteId, string $parIdArretDepart, string $parTripheadsign)
     {
-        $this->tripId = $parTripId;
         $this->routeId = $parRouteId;
         $this->tripHeadsign = $parTripheadsign;
+        $this->idArretDepart = $parIdArretDepart;
         $this->listeArrets = array();
     }
 
@@ -27,44 +27,32 @@ class Trips
 
     function serialize(): string
     {
-        $tripSerialized = "{";
+        $trainHeadsignSerialized = "{";
 
         //on parcourt les champs de l'objet
         foreach ($this as $nameField => $valueField){
-            $value = $valueField;
-
             //si le champ est une liste d'arrets, on convertit chaque objet
             if (is_array($valueField)){
-                $tripSerialized .= "\"$nameField\" : [";
+                $trainHeadsignSerialized .= "\"$nameField\" : [";
 
                 foreach ($valueField as $arret)
-                    $tripSerialized .= $arret->serialize() . ",";
+                    $trainHeadsignSerialized .= $arret->serialize() . ",";
 
                 //on enlève la virgule en trop
-                $tripSerialized = rtrim($tripSerialized, ",");
+                $trainHeadsignSerialized = rtrim($trainHeadsignSerialized, ",");
 
-                $tripSerialized .= "],";
+                $trainHeadsignSerialized .= "],";
 
             }
             else{
-                $tripSerialized .= "\"$nameField\" : \"$value\",";
+                $trainHeadsignSerialized .= "\"$nameField\" : \"$valueField\",";
             }
 
         }
         //on enlève la virgule en trop
-        $tripSerialized = rtrim($tripSerialized, ",");
+        $trainHeadsignSerialized = rtrim($trainHeadsignSerialized, ",");
 
-        return $tripSerialized . "}";
-    }
-
-    public function getTripId(): string
-    {
-        return $this->tripId;
-    }
-
-    public function setTripId(string $tripId): void
-    {
-        $this->tripId = $tripId;
+        return $trainHeadsignSerialized . "}";
     }
 
     public function getRouteId(): string
@@ -95,5 +83,21 @@ class Trips
     public function setListeArrets(array $listeArrets): void
     {
         $this->listeArrets = $listeArrets;
+    }
+
+    /**
+     * @return string
+     */
+    public function getIdArretDepart(): string
+    {
+        return $this->idArretDepart;
+    }
+
+    /**
+     * @param string $idArretDepart
+     */
+    public function setIdArretDepart(string $idArretDepart): void
+    {
+        $this->idArretDepart = $idArretDepart;
     }
 }
