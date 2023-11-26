@@ -1,0 +1,115 @@
+-- tp Oracle Spatial - Prise en main
+-- possible sous Live SQL d'Oracle - complément du tutorial "Spatial"
+-- Doc https://docs.oracle.com/en/database/oracle/oracle-database/19/spatl
+
+CREATE TABLE cola_markets (
+mkt_id NUMBER PRIMARY KEY,
+name VARCHAR2(32),
+shape SDO_GEOMETRY);
+
+INSERT INTO cola_markets VALUES(
+  1,'cola_a',
+ mdsys.SDO_GEOMETRY(
+    2003, -- polygone en deux dimensions
+    NULL,
+    NULL,
+    SDO_ELEM_INFO_ARRAY(1,1003,3), -- un rectangle (1003=extérieur)
+    SDO_ORDINATE_ARRAY(1,1, 5,7) -- seulement 2 points pour définir
+    -- un rectangle (bas gauche et haut droit) dans les système de
+    -- référence cartésien 
+  )
+);
+
+INSERT INTO cola_markets VALUES(
+  2,
+  'cola_b',
+    mdsys.SDO_GEOMETRY(
+    2003, -- polygone en deux dimensions
+    NULL,
+    NULL,
+    SDO_ELEM_INFO_ARRAY(1,1003,1), -- un seul polygone (extérieur)
+    SDO_ORDINATE_ARRAY(5,1, 8,1, 8,6, 5,7, 5,1)
+  )
+);
+
+INSERT INTO cola_markets VALUES(
+  3,
+  'cola_c',
+    mdsys.SDO_GEOMETRY(
+    2003, -- polygone en deux dimensions
+    NULL,
+    NULL,
+    SDO_ELEM_INFO_ARRAY(1,1003,1), -- un seul polygone (extérieur)
+    SDO_ORDINATE_ARRAY(3,3, 6,3, 6,5, 4,5, 3,3)
+  )
+);
+
+INSERT INTO cola_markets VALUES(
+  4,
+  'cola_d',
+  SDO_GEOMETRY(
+    2003, -- polygone en deux dimensions
+    NULL,
+    NULL,
+    SDO_ELEM_INFO_ARRAY(1,1003,4), -- un cercle
+    SDO_ORDINATE_ARRAY(8,7, 10,9, 8,11) -- décrit par 3 points non co-linéaires quelconques du cercle.
+  )
+);
+
+/* Version sous sql developer */  
+/*INSERT INTO user_sdo_geom_metadata(TABLE_NAME, COLUMN_NAME, DIMINFO, SRID) VALUES (
+  'cola_markets',
+  'shape',
+  SDO_DIM_ARRAY( -- 20X20 grid
+    SDO_DIM_ELEMENT('X', 0, 20, 0.005),
+    SDO_DIM_ELEMENT('Y', 0, 20, 0.005)
+  ),
+  NULL -- SRID
+);*/
+
+
+/* version sous Live SQL d'Oracle */
+-- modifier avec sys-context pour Live SQl
+EXECUTE SDO_UTIL.INSERT_SDO_GEOM_METADATA (sys_context('userenv','current_user'), -
+ 'COLA_MARKETS', 'SHAPE', -
+  SDO_DIM_ARRAY(SDO_DIM_ELEMENT('X',-180, 180, 0.05), -
+                SDO_DIM_ELEMENT('Y', -90, 90, 0.05)),-
+  NULL);
+
+CREATE INDEX cola_spatial_idx ON cola_markets(shape) 
+INDEXTYPE IS MDSYS.SPATIAL_INDEX;
+
+-- requêtes 
+
+SELECT SDO_GEOM.SDO_INTERSECTION(c_a.shape, c_c.shape, 0.005)
+FROM cola_markets c_a, cola_markets c_c
+WHERE c_a.name = 'cola_a' AND c_c.name = 'cola_c';
+
+SELECT SDO_GEOM.RELATE(c_b.shape, 'anyinteract', c_d.shape, 0.005)
+FROM cola_markets c_b, cola_markets c_d
+WHERE c_b.name = 'cola_b' AND c_d.name = 'cola_d';
+
+SELECT name, SDO_GEOM.SDO_AREA(shape, 0.005) FROM cola_markets;
+
+SELECT SDO_GEOM.SDO_DISTANCE(c_b.shape, c_d.shape, 0.005)
+FROM cola_markets c_b, cola_markets c_d
+WHERE c_b.name = 'cola_b' AND c_d.name = 'cola_d';
+
+-- les deux requetes suivantes utilisent l'index spatial - voir plan d'execution
+SELECT  c.mkt_id, c.name 
+FROM cola_markets c 
+WHERE SDO_NN(c.shape,
+             mdsys.sdo_geometry(2001, NULL,
+                 mdsys.sdo_point_type(10,7,NULL), NULL, NULL), 
+             'sdo_num_res=2') = 'TRUE';
+             
+SELECT  c.mkt_id, c.name, mdsys.SDO_NN_DISTANCE(1) dist
+FROM cola_markets c 
+WHERE SDO_NN(c.shape, 
+             mdsys.sdo_geometry(2001, NULL,
+                 mdsys.sdo_point_type(10,7,NULL), NULL, NULL),
+             'sdo_num_res=2', 1) = 'TRUE' 
+ORDER BY dist;
+
+
+-- Visualisation sous SQLdéveloper : Menu Affichage -> vue carte (rudimentaire)

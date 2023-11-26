@@ -7,10 +7,11 @@ from os.path import isfile, join
 # Connexion à la base de données
 client = MongoClient('localhost', 27017)
 db = client.BD_TrainIDF  # Nom de la base de données
-collectionTrips = db.collectionTrips  # Nom de la collection
-collectionRoutes = db.collectionRoutes  # Nom de la collection
+collectionTrips = db.CollectionTrips  # Nom de la collection
+collectionRoutes = db.CollectionRoutes  # Nom de la collection
 
-path = '../DATA/'
+#print(listdir())
+path = 'DATA/'
 ficCL = 'collectionLignes.json'
 
 listeFichiers = listdir(path)
